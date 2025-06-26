@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import * as jwt from 'jsonwebtoken';
 import { dataSource } from '../../db/connection';
-import { user } from '../userModule/userEntity';
+import { User } from '../userModule/userEntity';
 import { generateJwt } from '../utils/jwt';
 
 export async function handleToken(req: any) {
@@ -29,7 +29,7 @@ export async function handleToken(req: any) {
 }
 
 export async function login(email: string, password: string) {
-  const employeeRepo = dataSource.getRepository(user);
+  const employeeRepo = dataSource.getRepository(User);
 
   const users = await employeeRepo.findOneBy({ email });
   if (!users) {
@@ -37,7 +37,7 @@ export async function login(email: string, password: string) {
   }
 
   // Compare hashed password using bcrypt
-  const isPasswordValid = await bcrypt.compare(password, users.password);
+  const isPasswordValid = await bcrypt.compare(password, users.password_hash);
   if (!isPasswordValid) {
     throw new Error('Invalid password');
   }
