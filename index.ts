@@ -1,7 +1,6 @@
 import * as Hapi from '@hapi/hapi';
 import { Server } from '@hapi/hapi';
 import dotenv from 'dotenv';
-
 import { dataSource } from './db/connection';
 import { userRoute } from './src/userModule/userController'; 
 
