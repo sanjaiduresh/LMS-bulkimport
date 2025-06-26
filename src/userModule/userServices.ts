@@ -1,11 +1,16 @@
 import { dataSource } from "../../db/connection";
-import { user } from "./userEntity";
+import { User } from "./userEntity";
+import { Role } from "./RolesEntity";
+import { LeaveBalance } from "./LeaveBalanceEntity";
+import { LeaveType } from "./LeaveTypeEntity";
+import bcrypt from "bcrypt";
 
 export interface EmployeeData {
   name: string;
   email: string;
   password: string;
-  role?: "admin" | "employee" | "manager" | "hr" | "director";
+  role?: "admin" | "employee" | "manager" | "intern";
+  managerId?: number;
   leaveBalance?: {
     casual?: number;
     sick?: number;
@@ -15,54 +20,93 @@ export interface EmployeeData {
 
 export class UserService {
   static async createEmployee(data: EmployeeData) {
-    const repo = dataSource.getMongoRepository(user);
+    await this.checkUserAlreadyExists(data.email); // <-- Use validator inside
 
-    const duplicate = await repo.findOne({ where: { email: data.email } });
-    if (duplicate) throw new Error("User with this email already exists");
+    const userRepo = dataSource.getRepository(User);
+    const roleRepo = dataSource.getRepository(Role);
+    const leaveTypeRepo = dataSource.getRepository(LeaveType);
+    const leaveBalanceRepo = dataSource.getRepository(LeaveBalance);
 
-    const employee = repo.create({
-      // Ensure these properties exist in Employee entity, otherwise remove them
+    const role = await roleRepo.findOne({ where: { name: data.role ?? "employee" } });
+    if (!role) throw new Error(`Role '${data.role ?? "employee"}' not found`);
+
+    const hashedPassword = await bcrypt.hash(data.password, 10);
+
+    const user = userRepo.create({
       name: data.name,
-      email: data.email,
-      password: data.password,
-      role: data.role ?? "employee",
-      leaveBalance: {
-        casual: data.leaveBalance?.casual ?? 10,
-        sick: data.leaveBalance?.sick ?? 5,
-        earned: data.leaveBalance?.earned ?? 15,
-      }
+      email: data.email.trim().toLowerCase(),
+      password_hash: hashedPassword,
+      role_id: role.role_id,
+      manager_id: data.managerId ?? null,
     });
 
-    await repo.save(employee);
-    return employee;
+    const savedUser = await userRepo.save(user);
+
+    const leaveTypes = await leaveTypeRepo.find();
+    const leaveTypeMap = Object.fromEntries(
+      leaveTypes.map((lt) => [lt.name.toLowerCase(), lt])
+    );
+
+    const currentYear = new Date().getFullYear();
+    const defaults = {
+      casual: data.leaveBalance?.casual ?? 10,
+      sick: data.leaveBalance?.sick ?? 5,
+      earned: data.leaveBalance?.earned ?? 15,
+    };
+
+    const leaveBalances: LeaveBalance[] = [];
+
+    for (const [type, total] of Object.entries(defaults)) {
+      const leaveType = leaveTypeMap[type];
+      if (!leaveType) continue;
+
+      const leaveBalance = leaveBalanceRepo.create({
+        user_id: savedUser.user_id,
+        type_id: leaveType.type_id,
+        year: currentYear,
+        total_days: total.toFixed(2),
+        used_days: "0.00",
+        available_days: total.toFixed(2),
+      });
+
+      leaveBalances.push(leaveBalance);
+    }
+
+    await leaveBalanceRepo.save(leaveBalances);
+
+    return savedUser;
   }
 
-  static async getEmployeeByEmail(email: string): Promise<user | null> {
-    const repo = dataSource.getMongoRepository(user);
+  static async getEmployeeByEmail(email: string): Promise<User | null> {
+    const userRepo = dataSource.getRepository(User);
+    const normalizedEmail = email.trim().toLowerCase();
+
     try {
-      const employee = await repo.findOne({
-        where: { email, soft_delete: false }, // Assuming you track soft deletes
+      return await userRepo.findOne({
+        where: { email: normalizedEmail},
       });
-      return employee;
     } catch (error) {
       console.error("Error getting employee by email:", error);
       throw new Error("Failed to get employee");
     }
   }
 
-  // Optional: You might want to keep your existing getEmployee by id as well:
-  static async getEmployee(id: string): Promise<user | null> {
-    const repo = dataSource.getMongoRepository(user);
+  static async getEmployee(id: string): Promise<User | null> {
+    const userRepo = dataSource.getRepository(User);
     try {
-      const employee = await repo.findOne({
-        where: { id, soft_delete: false },
+      return await userRepo.findOne({
+        where: { user_id: parseInt(id)},
       });
-      return employee;
     } catch (error) {
-      console.error("Error getting employee by id:", error);
+      console.error("Error getting employee by ID:", error);
       throw new Error("Failed to get employee");
     }
   }
 
-  // You can add other methods like updateEmployee, deleteEmployee, etc. here
+  static async checkUserAlreadyExists(email: string): Promise<void> {
+    const existingUser = await this.getEmployeeByEmail(email);
+    if (existingUser) {
+      throw new Error("User with this email already exists");
+    }
+  }
 }

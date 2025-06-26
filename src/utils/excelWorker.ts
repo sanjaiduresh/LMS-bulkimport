@@ -20,22 +20,36 @@ export async function parseExcel(buffer: Buffer): Promise<EmployeeData[]> {
 
     const rowData = row.values as any[];
 
-    const email = normalizeCellValue(rowData[1]).toLowerCase();
-    const name = normalizeCellValue(rowData[2]);
+    // Adjust indexes based on your Excel columns:
+    // Assuming columns:
+    const name = normalizeCellValue(rowData[1]);
+    const email = normalizeCellValue(rowData[2]).toLowerCase();
     const password = normalizeCellValue(rowData[3]);
     const role = normalizeCellValue(rowData[4]) as EmployeeData['role'];
+    const managerIdStr = normalizeCellValue(rowData[5]);
+    const casualStr = normalizeCellValue(rowData[6]);
+    const sickStr = normalizeCellValue(rowData[7]);
+    const earnedStr = normalizeCellValue(rowData[8]);
 
-    if (!email || !name || !password || !role) {
+    if (!name || !email || !password || !role) {
       console.warn(`⚠️ Skipping row ${index} - Missing required fields`);
       return;
     }
 
+    const managerId = managerIdStr ? Number(managerIdStr) : undefined;
+    const leaveBalance = {
+      casual: casualStr ? Number(casualStr) : undefined,
+      sick: sickStr ? Number(sickStr) : undefined,
+      earned: earnedStr ? Number(earnedStr) : undefined,
+    };
+
     employees.push({
-      email,
       name,
+      email,
       password,
       role,
-      // optionally add leaveBalance or other fields if available
+      managerId,
+      leaveBalance,
     });
   });
 
@@ -55,6 +69,6 @@ export async function pushEmployeesToQueue(employees: EmployeeData[]) {
   await pipeline.exec();
   console.log(`✅ Pushed ${employees.length} employees to queue`);
 
-  // don't disconnect here, keep connection for reuse
+  // Keep Redis connection open for reuse
   // await redisClient.disconnect();
 }

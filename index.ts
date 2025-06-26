@@ -1,11 +1,9 @@
-// server.ts
-
 import * as Hapi from '@hapi/hapi';
 import { Server } from '@hapi/hapi';
 import dotenv from 'dotenv';
 
 import { dataSource } from './db/connection';
-import { userRoute } from './src/userModule/userController'; // ➜ Only routes we keep
+import { userRoute } from './src/userModule/userController'; 
 
 dotenv.config();
 
@@ -19,11 +17,12 @@ async function init() {
     routes: {
       cors: {
         origin: [
-          'http://localhost:3001',
-          'https://leave-management-system-frontend.vercel.app',
-          'https://leave-management-system-frontend-r480vqbxp-harishmugis-projects.vercel.app',
-          'https://leave-management-system-frontend-psi.vercel.app',
-          'https://leave-management-system-frontend-mznds8m7u-harishmugis-projects.vercel.app',
+          // 'http://localhost:3001',
+          // 'https://leave-management-system-frontend.vercel.app',
+          // 'https://leave-management-system-frontend-r480vqbxp-harishmugis-projects.vercel.app',
+          // 'https://leave-management-system-frontend-psi.vercel.app',
+          // 'https://leave-management-system-frontend-mznds8m7u-harishmugis-projects.vercel.app',
+          '*'
         ],
         credentials: true,
       },

@@ -34,12 +34,10 @@ export async function connectRedisWithRetry(retries = 5) {
     } catch (err: any) {
       console.error(`❌ Redis connection failed: ${err.message}`);
       retries--;
-
       if (retries === 0) {
         console.error('🚫 Out of retries. Could not connect to Redis.');
         throw err; // Let app crash or handle as needed
       }
-
       console.log(`🔁 Retrying Redis connection in 3s... (${retries} retries left)`);
       await new Promise((resolve) => setTimeout(resolve, 3000));
     }

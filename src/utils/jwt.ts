@@ -1,10 +1,10 @@
 const bcrypt = require('bcryptjs');
 import * as jwt from 'jsonwebtoken';
 import { dataSource } from '../../db/connection';
-import { user } from '../userModule/userEntity';
+import { User } from '../userModule/userEntity';
 import { promises } from 'dns';
 
-export async function generateJwt(userData: user) {
+export async function generateJwt(userData: User) {
 
     const token = jwt.sign(
         { userData },
